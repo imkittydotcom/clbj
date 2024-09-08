@@ -35,7 +35,24 @@ def display_hand(hand, hide_first=False):
         return f"[Hidden], {', '.join([f'{rank}{suit}' for rank, suit in hand[1:]])}"
     return ', '.join([f'{rank}{suit}' for rank, suit in hand])
 
-def play_blackjack(round_number, score, ruleset):
+def display_score(score):
+    return f"Score: W: {score['wins']} L: {score['losses']} T: {score['ties']}"
+
+def get_bet(chips):
+    while True:
+        bet = input(f"\nYou have {chips} chips. Enter your bet (1-{chips} or 'A' for All In): ").upper()
+        if bet == 'A':
+            return chips
+        try:
+            bet = int(bet)
+            if 1 <= bet <= chips:
+                return bet
+            else:
+                print(f"Invalid bet. Please enter a number between 1 and {chips}.")
+        except ValueError:
+            print("Invalid input. Please enter a number or 'A' for All In.")
+
+def play_blackjack(round_number, score, ruleset, chips=None):
     deck = create_deck()
     random.shuffle(deck)
 
@@ -43,7 +60,11 @@ def play_blackjack(round_number, score, ruleset):
     dealer_hand = [deck.pop(), deck.pop()]
 
     print(f"\nRound {round_number}")
-    print(f"Current Score - Wins: {score['wins']}, Losses: {score['losses']}, Ties: {score['ties']}")
+    print(display_score(score))
+
+    if ruleset == 'casino':
+        bet = get_bet(chips)
+        print(f"Your bet: {bet} chips")
 
     while True:
         print(f"\nYour hand: {display_hand(player_hand)}")
@@ -52,10 +73,10 @@ def play_blackjack(round_number, score, ruleset):
         player_value = calculate_hand_value(player_hand)
         if player_value == 21:
             print("Blackjack! You win!")
-            return 'win'
+            return 'win', bet if ruleset == 'casino' else None
         elif player_value > 21:
             print("Bust! You lose.")
-            return 'loss'
+            return 'loss', bet if ruleset == 'casino' else None
 
         action = input("Do you want to (H)it or (S)tand? ").lower()
         if action == 'h':
@@ -75,20 +96,18 @@ def play_blackjack(round_number, score, ruleset):
 
     if dealer_value > 21:
         print("Dealer busts! You win!")
-        return 'win'
+        return 'win', bet if ruleset == 'casino' else None
     elif dealer_value > player_value:
         print("Dealer wins!")
-        return 'loss'
+        return 'loss', bet if ruleset == 'casino' else None
     elif dealer_value < player_value:
         print("You win!")
-        return 'win'
+        return 'win', bet if ruleset == 'casino' else None
     else:
         print("It's a tie!")
-        return 'tie'
+        return 'tie', 0 if ruleset == 'casino' else None
 
-def main():
-    print("Welcome to Blackjack!")
-    
+def get_ruleset():
     while True:
         ruleset = input("Choose ruleset - (B)asic or (C)asino: ").lower()
         if ruleset in ['b', 'c']:
@@ -101,31 +120,87 @@ def main():
     if ruleset == 'basic':
         print("In this ruleset, the dealer stands on all 17s.")
     else:
-        print("In this ruleset, the dealer hits on soft 17.")
+        print("In this ruleset, the dealer hits on soft 17 and you can bet chips.")
+    
+    return ruleset
 
+def get_num_rounds():
     while True:
         try:
             num_rounds = int(input("\nHow many rounds would you like to play? "))
             if num_rounds > 0:
-                break
+                return num_rounds
             else:
                 print("Please enter a positive number.")
         except ValueError:
             print("Invalid input. Please enter a number.")
 
-    score = {'wins': 0, 'losses': 0, 'ties': 0}
+def play_game(ruleset, score, chips=None):
+    num_rounds = get_num_rounds()
 
     for round in range(1, num_rounds + 1):
-        result = play_blackjack(round, score, ruleset)
-        if result == 'win':
-            score['wins'] += 1
-        elif result == 'loss':
-            score['losses'] += 1
+        if ruleset == 'casino':
+            if chips <= 0:
+                print("You're out of chips! Game over.")
+                break
+            result, bet = play_blackjack(round, score, ruleset, chips)
+            if result == 'win':
+                score['wins'] += 1
+                chips += bet
+                print(f"You won {bet} chips!")
+            elif result == 'loss':
+                score['losses'] += 1
+                chips -= bet
+                print(f"You lost {bet} chips.")
+            else:
+                score['ties'] += 1
+            print(f"Your current chip balance: {chips}")
         else:
-            score['ties'] += 1
+            result, _ = play_blackjack(round, score, ruleset)
+            if result == 'win':
+                score['wins'] += 1
+            elif result == 'loss':
+                score['losses'] += 1
+            else:
+                score['ties'] += 1
 
     print("\nGame Over!")
-    print(f"Final Score - Wins: {score['wins']}, Losses: {score['losses']}, Ties: {score['ties']}")
+    print(display_score(score))
+    if ruleset == 'casino':
+        print(f"Final chip balance: {chips}")
+    
+    return chips
+
+def main():
+    print("Welcome to Blackjack!")
+    
+    ruleset = get_ruleset()
+    score = {'wins': 0, 'losses': 0, 'ties': 0}
+    chips = 100 if ruleset == 'casino' else None
+
+    while True:
+        chips = play_game(ruleset, score, chips)
+
+        while True:
+            choice = input("\nDo you want to (C)ontinue current game, start a (N)ew game, or (Q)uit? ").lower()
+            if choice in ['c', 'n', 'q']:
+                break
+            else:
+                print("Invalid input. Please enter 'C', 'N', or 'Q'.")
+
+        if choice == 'c':
+            print("\nContinuing current game...")
+            print(display_score(score))
+            if ruleset == 'casino':
+                print(f"Current chip balance: {chips}")
+        elif choice == 'n':
+            print("\nStarting a new game...")
+            ruleset = get_ruleset()
+            score = {'wins': 0, 'losses': 0, 'ties': 0}
+            chips = 100 if ruleset == 'casino' else None
+        else:
+            print("\nThank you for playing Blackjack!")
+            break
 
 if __name__ == "__main__":
     main()
