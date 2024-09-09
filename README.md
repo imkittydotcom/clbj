@@ -3,6 +3,10 @@
 
 play blackjack in your command line against a virtual dealer!
 
+# to play:
+python clbj.py
+select mode and number of hands to play
+
 # modes
 
 ## basic
